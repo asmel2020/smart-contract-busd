@@ -1,0 +1,105 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+
+interface IERC20 {
+
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function allowance(address owner, address spender) external view returns (uint256);
+
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+
+}
+
+
+contract aceptarPagosERC20{
+
+    //@dev variables de estado
+
+    //@dev mapping para almacenar los datos del usuario
+    mapping(address => bool) private _depositar;
+
+    mapping(address => uint) private _balanceERC20;
+    //mapping(address => uint) private _IdUser;
+
+    //@dev alamcenamiento de todas las wallet que an depositado
+    address[] private _walletUser;
+
+    //@ cantidad fija para deposito
+    uint private _DepositoPermitido;
+
+    //@dev dueno de la direccion
+    address private _owner;
+   
+    //@dev contrato erc20 del cual se acceptara deposito
+
+
+    //0xed24fc36d5ee211ea25a80239fb8c4cfd80f12ee contrato de busd en la red de pruebas
+    address _contractDeposit=0xeD24FC36d5Ee211Ea25A80239Fb8C4Cfd80f12Ee;
+
+    IERC20 Ierc20 = IERC20(_contractDeposit);
+
+   //@dev modificadores
+
+    modifier onlyOwner() {
+        require(owner() == msg.sender, "Ownable: caller is not the owner");
+        _;
+    }
+    
+    constructor(){
+        _owner=msg.sender;
+        _DepositoPermitido=1 ether;
+    }
+
+    function owner() public view virtual returns (address) {
+        return _owner;
+    }
+
+
+    //@dev cobrar con el token erc20
+    function payErc20(uint amount)external returns(bool){  
+
+        require(!_depositar[msg.sender]);
+
+        require(amount==_DepositoPermitido,"el monto transferido incorrecto");
+
+        require(Ierc20.allowance(msg.sender,address(this))   >= amount);
+
+        require(  Ierc20.transferFrom(msg.sender , address(this) , amount) );
+
+
+        _balanceERC20[msg.sender]+=amount;
+
+        _depositar[msg.sender]=true;
+
+        _walletUser.push(msg.sender);
+
+        //_IdUser[msg.sender]=(_walletUser.length-1);
+       
+        return true;
+    }
+
+
+    function retirarErc20()external onlyOwner returns(bool){
+
+        Ierc20.transfer(msg.sender,Ierc20.balanceOf(address(this)));
+
+        return true;
+    }
+
+    function getBalance() external view returns(uint){
+        return Ierc20.balanceOf(address(this));
+    }
+
+    function getDepositar(address _wallet)external view returns(bool){
+        return _depositar[_wallet];
+    }
+
+    function getWhilist()external view onlyOwner returns(address[] memory){
+        return _walletUser;
+    }
+
+}
